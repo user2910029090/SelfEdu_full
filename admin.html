@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Panel - SelfEdu_Ai</title>
+    <style>
+        body { font-family: sans-serif; background: #f0f2f5; padding: 40px; }
+        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #2563eb; color: white; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>📊 O'quvchialar statistikasi</h1>
+        <table>
+            <thead>
+                <tr>
+                    <th>O'quvchi</th>
+                    <th>Topshiriq ID</th>
+                    <th>Natija (Ball)</th>
+                </tr>
+            </thead>
+            <tbody id="admin-table">
+                </tbody>
+        </table>
+    </div>
+
+    <script>
+        fetch('https://selfedu-backend.onrender.com/admin/stats')
+        .then(res => res.json())
+        .then(data => {
+            const table = document.getElementById('admin-table');
+            for (const [name, result] of Object.entries(data)) {
+                table.innerHTML += `
+                    <tr>
+                        <td>${name}</td>
+                        <td>${result.task_id}</td>
+                        <td>${result.score}</td>
+                    </tr>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>
