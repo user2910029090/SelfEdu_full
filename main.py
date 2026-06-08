@@ -1,19 +1,48 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
-import random  # Soxta AI shablonlarini tasodifiy tanlash uchun
+import random
+import os
 
 app = FastAPI()
 
-# CORS - Frontend bilan xavfsiz bog'lanish uchun
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+# CORS - Tashqi so'rovlar yoki mahalliy testlar bilan muammosiz bog'lanish uchun
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-# Server uyg'oq ekanini tekshirish uchun bosh sahifa yo'nalishi
-@app.get("/")
-async def root():
-    return {"status": "alive", "message": "SelfEdu_Ai backend is working!"}
+# -------------------------------------------------------------
+# FRONTEND SAHIFALARINI KO'RSATISH (VERCEL MONOLIT SOZLAMASI)
+# -------------------------------------------------------------
 
-# Simulyatsiya uchun xotira (Ma'lumotlar bazasi o'rniga)
+# 1. Kirish sahifasi (index.html) - Loyihangizning asosiy "/" manzilida ochiladi
+@app.get("/", response_class=HTMLResponse)
+async def read_index():
+    # Fayl manzili Vercel serverlarida to'g'ri topilishi uchun absolute path olamiz
+    current_dir = os.path.dirname(os.path.realpath(__file__))
+    file_path = os.path.join(current_dir, "index.html")
+    with open(file_path, "r", encoding="utf-8") as f:
+        return f.read()
+
+# 2. Ichki bosh sahifa (home.html) - Tizimda "/home" manzilida ochiladi
+@app.get("/home", response_class=HTMLResponse)
+async def read_home():
+    current_dir = os.path.dirname(os.path.realpath(__file__))
+    file_path = os.path.join(current_dir, "home.html")
+    with open(file_path, "r", encoding="utf-8") as f:
+        return f.read()
+
+
+# -------------------------------------------------------------
+# BACKEND API STRUKTURASI VA LOGIKASI
+# -------------------------------------------------------------
+
+# Simulyatsiya uchun operativ xotira (Ma'lumotlar bazasi o'rniga)
 db_users = {} 
 results_db = {} 
 
@@ -24,13 +53,13 @@ class UserAction(BaseModel):
     savol: str = None
     ball: int = 0
 
-# 1. Ro'yxatdan o'tish (Baza simulyatsiyasi)
+# 1. Ro'yxatdan o'tish API
 @app.post("/register")
 async def register(data: UserAction):
     db_users[data.ism] = {"familiya": data.familiya, "ball": 0}
     return {"message": f"{data.ism} tizimga qo'shildi", "status": "ok"}
 
-# 2. Fanlar va Mavzular (5 tadan mavzu bilan)
+# 2. Fanlar va 5 tadan Mavzular ierarxiyasi
 @app.get("/data")
 async def get_data():
     return {
@@ -41,31 +70,28 @@ async def get_data():
         }
     }
 
-# 3. AI Maslahatchi (Mutlaqo soxta, API kalitsiz va limitsiz ishlaydi)
+# 3. AI Maslahatchi (Mutlaqo soxta, API kalitsiz, limitsiz va o'ta barqaror)
 @app.post("/ask-ai")
 async def ask_ai(data: UserAction):
-    # Har xil vaziyatlar uchun aqlli o'qituvchi shablonlari
     shablon_javoblar = [
         f"Ajoyib savol! {data.fan} fani doirasida '{data.savol}' mavzusi juda dolzarb hisoblanadi. Mustaqil ta'lim samaradorligini oshirish uchun ushbu yo'nalishdagi vizual materiallar va platformamizdagi amaliy testlar bilan tanishib chiqishingizni tavsiya qilaman.",
         f"Tizim intellektual tahlili yakunlandi: Siz so'ragan '{data.savol}' masalasi bo'yicha shaxsiy o'quv traektoriyangizga mos qo'shimcha topshiriqlar shakllantirildi. Bilimni mustahkamlash uchun darslikning ushbu bo'limini qayta ko'rib chiqishingizni maslahat beraman.",
         f"Sizning {data.fan} fani bo'yicha so'rovingiz qabul qilindi. '{data.savol}' tahliliga ko'ra, mustaqil ta'lim metodologiyasida tizimli yondashuv juda muhim. Platformadagi darajali testlar algoritmi aynan shu kamchiliklarni bartaraf etishga yordam beradi."
     ]
     
-    # Kelgan so'rovga qarab tasodifiy bitta chiroyli javobni tanlaymiz
+    # Tasodifiy bitta professional javob andozasini tanlaymiz
     tanlangan_javob = random.choice(shablon_javoblar)
-    
     return {
         "status": "ok", 
         "javob": tanlangan_javob
     }
 
-# 4. Ballarni tekshirish va Shaxsiy tavsiya (Individuallashtirish logikasi)
+# 4. Ballarni tekshirish va Shaxsiy tavsiya (Adaptive Learning & Murakkablashtirish logikasi)
 @app.post("/submit_result")
 async def submit_result(user_name: str, score: int, task_id: int, fan: str = "Biologiya"):
-    # Talaba natijasini saqlash
     results_db[user_name] = {"score": score, "task_id": task_id, "fan": fan}
     
-    # Bilim darajasiga qarab murakkablikni moslashtirish (Adaptive Learning)
+    # Talabaning bilim darajasiga qarab o'quv traektoriyasini moslashtirish
     if score >= 80:
         maqom = "A'lo"
         tavsiya = f"Tizim intellektual tahlili: Siz {fan} fani bo'yicha yuqori intellekt ko'rsatdingiz. Keyingi murakkablashtirilgan bosqich (Daraja {task_id + 1}) siz uchun muvaffaqiyatli ochildi!"
@@ -86,12 +112,12 @@ async def submit_result(user_name: str, score: int, task_id: int, fan: str = "Bi
         "tavsiya": tavsiya
     }
 
-# 5. Admin uchun barcha natijalarni qaytarish API
+# 5. Admin Panel uchun barcha natijalarni qaytarish API
 @app.get("/admin/stats")
 async def get_stats():
     return results_db
 
-# 6. Ballar va Kitoblar (Gamification)
+# 6. Ballar evaziga kitob berish API (Gamification)
 @app.post("/exchange")
 async def exchange_points(data: UserAction):
     if data.ism in db_users:
